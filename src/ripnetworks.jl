@@ -1,6 +1,6 @@
 raw_html(n) = readlines(open(`curl http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=$n&algorithm=best&output=macro`))
 swaps = []
-for n = 2:64
+for n = 2:32
 	swap = []
 	for line in raw_html(n)
 		for m in eachmatch(r"SWAP\((\d+), (\d+)\)", line)
