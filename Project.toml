@@ -1,0 +1,4 @@
+name = "TupleSort"
+uuid = "02a1da8f-0e06-40ac-981f-54ba56e63d6b"
+authors = ["Peter Ahrens <ptrahrens@gmail.com>"]
+version = "0.1.0"
