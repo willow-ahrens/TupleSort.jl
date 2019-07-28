@@ -1,9 +1,6 @@
 module TupleSort
 
-function Base.sort(t::Tuple; dims::Integer = 1, alg::Base.Algorithm=Base.DEFAULT_UNSTABLE, lt=isless, by=identity, rev::Bool=false, order::Base.Ordering=Base.Forward)
-    #@assert dims == 1
-    return tuplesort(t, lt, by, rev)
-end
+export networksort
 
 const _known_sort_swaps = [
     [],
@@ -45,41 +42,36 @@ function _merge_swaps(n)
     if n <= 1
         return []
     end
-    m = n >> 1
+    m = 1 << (ndigits(n - 1, base=2) - 1) #intlog2
     swaps = []
-    for i = 1:m
-        push!(swaps, (i, n - i + 1))
-    end
-    append!(swaps, _bitonic_merge_swaps(m))
-    append!(swaps, map(((i, j),) -> (i + m, j + m), _bitonic_merge_swaps(n - m)))
-end
-  
-function _bitonic_merge_swaps(n)
-    if n <= 1
-        return []
-    end
-    m = n >> 1
-    swaps = []
-    for i = 1:m
+    for i = 1:n - m
         push!(swaps, (i, m + i))
     end
-    append!(swaps, _bitonic_merge_swaps(m))
-    append!(swaps, map(((i, j),) -> (i + m, j + m), _bitonic_merge_swaps(n - m)))
+    append!(swaps, _merge_swaps(m))
+    inc((i, j),) = (i + m, j + m)
+    append!(swaps, map(inc, _merge_swaps(n - m)))
 end
 
 function _sort_swaps(n)
-    if n <= 1# length(_known_sort_swaps)
+    if n < length(_known_sort_swaps)
         return _known_sort_swaps[n + 1]
     else
-        m = n >> 1
-	bottom_swaps = _sort_swaps(m)
-	top_swaps = map(((i, j),) -> (i + m, j + m), _sort_swaps(n - m))
-        merge_swaps = _merge_swaps(n)
-        return [bottom_swaps; top_swaps; merge_swaps]
+        swaps = []
+        m = 1 << (ndigits(n - 1, base=2) - 1) #intlog2
+        append!(swaps, _sort_swaps(m))
+        inc((i, j),) = (i + m, j + m)
+        append!(swaps, map(inc, _sort_swaps(n - m)))
+        for i = 1:n - m
+            push!(swaps, (i + 2m - n, n - i + 1))
+        end
+        append!(swaps, _merge_swaps(m))
+        append!(swaps, map(inc, _merge_swaps(n - m)))
+        return swaps
     end
 end
 
-@generated function tuplesort(t::NTuple{N}, lt, by, rev) where {N}
+networksort(t::Tuple; lt=<, by=identity, rev=false) = _networksort(t, lt, by, rev)
+@generated function _networksort(t::NTuple{N}, lt, by, rev) where {N}
     vars = [Symbol(:t,n) for n = 1:N]
     thunk = Expr(:block)
     for (i, j) in _sort_swaps(N)
@@ -95,6 +87,11 @@ end
         $thunk
         return ($(vars...),)
     end
+end
+
+function Base.sort(t::Tuple; dims::Integer = 1, alg::Base.Algorithm=Base.DEFAULT_UNSTABLE, lt=isless, by=identity, rev::Bool=false, order::Base.Ordering=Base.Forward)
+    #@assert dims == 1
+    return networksort(t, lt=lt, by=by, rev=rev)
 end
 
 end # module
